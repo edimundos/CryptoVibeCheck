@@ -38,7 +38,7 @@ To execute the automated test suite and ensure everything is functioning as expe
 - Matplotlib: For data visualization.
 
 #### Author:
-- **Eduards Žeiris** - *Initial Work* - [YourGithubProfile](https://github.com/YourGithub)
+- **Eduards Žeiris** - *Initial Work*
 
 
 #### Acknowledgments:
