@@ -1,0 +1,9 @@
+pandas
+numpy
+requests
+statsmodels
+scikit-learn
+python-dateutil
+pytz
+matplotlib
+pytest
