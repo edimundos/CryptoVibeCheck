@@ -1,3 +1,6 @@
+import schedule
+import time
+import warnings
 import pandas as pd
 import csv
 import time
@@ -8,6 +11,27 @@ from model_classes import ArimaModel, SarimaxModel
 from send_email import send_email
 
 PREDICT_DAY_COUNT = 10
+
+amount_of_days = 10
+
+def main():
+
+    warnings.filterwarnings("ignore", category=FutureWarning, module="statsmodels.tsa.base.tsa_model")
+    warnings.filterwarnings("ignore", message=".*An unsupported index was provided and will be ignored when e.g. forecasting.*", module="statsmodels.*")
+    warnings.filterwarnings("ignore", message="No supported index is available. Prediction results will be given with an integer index beginning at `start`.", module="statsmodels.*")
+
+    run_predict()
+
+#     schedule.every().day.at("13:00").do(job)
+
+#     while True:
+#         schedule.run_pending()
+#         time.sleep(3600)
+
+
+# def job():
+#     run_predict()
+
 
 def fetch_data():
     """
@@ -21,7 +45,7 @@ def fetch_data():
         ValueError: If the fetched data is empty or unavailable.
 
     """
-    
+
     greedIndexURL = "https://api.alternative.me/fng/?limit=100000&date_format=eu"
     key = "6a3f091047ad80bb804e418f7880da6fabebe0354ba1936578d7adc6d31e906d"
     BTCPriceURL = f"https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&limit=2000&api_key={key}"
@@ -59,13 +83,19 @@ def create_csv(greedJSON, btcJSON, file_name='data.csv'):
     for item in greedJSON:
         try:
             date_object = datetime.strptime(item["timestamp"], '%d-%m-%Y')
-            unix_time = int(time.mktime(date_object.timetuple())) + 7200
+            unix_time = int(time.mktime(date_object.timetuple()))
         except ValueError as e:
             print(f"Skipping item due to date parsing error: {e}")
             continue
 
         for BTCItem in btcJSON:
-            if BTCItem.get("time") == unix_time:
+
+            try:
+                timeUnix = abs(BTCItem.get("time") - unix_time)
+            except TypeError as e:
+                raise TypeError(f"BTC time not in int format: {e}")
+
+            if timeUnix <= 86400:
                 BTCPrice = BTCItem.get("open")
                 if BTCPrice is None:
                     print("Skipping item due to missing BTC price.")
@@ -97,7 +127,7 @@ def get_csv():
 
     Raises:
         Passes through any exceptions raised by `fetch_data()` or `create_csv()`.
-    """    
+    """
     greedJSON, btcJSON = fetch_data()
     create_csv(greedJSON, btcJSON)
 
@@ -115,7 +145,7 @@ def get_pandas_df(file):
         FileNotFoundError: If the specified CSV file does not exist.
         ValueError: If the CSV file is empty or an error occurs during processing.
     """
-    
+
     if not os.path.exists(file):
         raise FileNotFoundError("The CSV file does not exist. Ensure 'get_csv' has been generated successfully.")
 
@@ -146,7 +176,7 @@ def run_predict():
         Any exceptions raised during data preparation, model processing, or email sending are caught and logged,
         halting the execution of subsequent steps.
     """
-    
+
     file = "data.csv"
     try:
         get_csv()
@@ -159,7 +189,7 @@ def run_predict():
         today = pd.Timestamp.now().normalize()
         future_dates = pd.date_range(start=today, periods=PREDICT_DAY_COUNT + 1)[1:]
 
-        arima = ArimaModel(df['greedCoef'], order=(6, 2, 0), future_dates=future_dates)
+        arima = ArimaModel(df['greedCoef'], order=(1, 0, 2), future_dates=future_dates)
         arima.fit()
         arima.predict(PREDICT_DAY_COUNT)
 
@@ -172,7 +202,7 @@ def run_predict():
         return
 
     try:
-        sarimax = SarimaxModel(data=df['price'], exog=df[['greedCoef']], order=(6, 2, 0), seasonal_order=(2, 1, 0, 7), future_dates=future_dates)
+        sarimax = SarimaxModel(data=df['price'], exog=df[['greedCoef']], order=(5, 0, 0), seasonal_order=(2, 1, 0, 7), future_dates=future_dates)
         sarimax.fit(exog=df[['greedCoef']])
         sarimax.predict(PREDICT_DAY_COUNT, future_greedCoef[['greedCoef']])
         prices_forecast_series = sarimax.series()
@@ -185,15 +215,15 @@ def run_predict():
     try:
         send_email(
             sender='cryptoemail377@gmail.com',
-            password='durh yszf uljk xwet', 
+            password='durh yszf uljk xwet',
             prices_forecast_series=prices_forecast_series,
             today=df.tail(1),
             greed_forecast_series=greed_forecast_series
         )
     except Exception as e:
         print(f"Failed to send email: {e}")
-        
-        
 
 
 
+if __name__ == "__main__":
+    main()

@@ -46,7 +46,7 @@ Ensure you have Python 3.12 installed on your system. You will also need `pip` f
 ### Running the Code:
 To run the main application, use the following command in your terminal:
 
-```python main.py```
+```python project.py```
 
 ### Running the Tests:
 To execute the automated test suite and ensure everything is functioning as expected, run:

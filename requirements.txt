@@ -8,3 +8,5 @@ pytz
 matplotlib
 schedule
 pytest
+mocker
+pytest-mock
